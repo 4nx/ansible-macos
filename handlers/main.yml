@@ -1,0 +1,29 @@
+---
+- name: restart auditd
+  become: yes
+  command: auditd -s
+
+- name: restart AppStore
+  command: killall "App Store"
+  ignore_errors: yes
+
+- name: restart MenuBar
+  command: killall SystemUIServer
+  ignore_errors: yes
+
+- name: restart Bluetooth
+  command: killall -HUP bluetoothd
+  ignore_errors: yes 
+
+- name: restart NtpServer
+  command: killall ntpd
+  ignore_errors: yes
+
+- name: restart Dock
+  command: killall Dock
+  ignore_errors: yes
+
+- name: restart osquery
+  become: yes
+  command: "launchctl kickstart -k system/{{ osquery_domain }}"
+  ignore_errors: yes

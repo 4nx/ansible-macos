@@ -1,0 +1,54 @@
+---
+- name: "Desktop & Screen Saver - Get the current background image"
+  command: sqlite3 ~/Library/Application\ Support/Dock/desktoppicture.db "select value from data";
+  changed_when: false
+  register: result_background_image_current
+
+- name: "Desktop & Screen Saver - Check if background image exists"
+  stat: path={{ desktop_screen_saver_background_image }}
+  changed_when: false
+  register: result_background_image_new
+
+- name: "Desktop & Screen Saver - Change desktop background"
+  command: sqlite3 ~/Library/Application\ Support/Dock/desktoppicture.db "update data set value = '{{ desktop_screen_saver_background_image }}'";
+  when: 
+    - desktop_screen_saver_background_mage is defined
+    - result_background_image_new.stat.exists
+    - result_background_image_current.stdout != desktop_screen_saver_background_image
+  notify: restart Dock
+
+- name: "Desktop & Screen Saver - Set an inactivity interval for the screen saver"
+  osx_defaults:
+      domain: 'com.apple.screensaver'
+      host: 'currentHost'
+      key: 'idleTime'
+      type: int
+      value: "{{ desktop_screen_saver_idle_time }}"
+  when: desktop_screen_saver_idle_time is defined
+
+- name: "Desktop & Screen Saver - Get actual users on system"
+  shell: dscl . list /Users | grep '^[^_|daemon|root|Guest|nobody]'
+  changed_when: false
+  register: result_get_users
+
+- name: "Desktop & Screen Saver - Get values for corner configuration"
+  shell: "defaults read /Users/{{ item[0] }}/Library/Preferences/com.apple.dock {{ item[1] }}"
+  changed_when: false
+  register: result_corner_configuration
+  loop: "{{ query('nested', ['{{ result_GetUsers.stdout_lines }}'], ['wvous-bl-corner', 'wvous-br-corner', 'wvous-tl-corner', 'wvous-tr-corner']) }}"
+
+  #- debug: 
+  #    var: "{{ item.stdout }}"
+  #loop: "{{ result_corner_configuration.results }}"
+
+- name:  "Desktop & Screen Saver - Secure screen saver corners"
+  osx_defaults:
+      domain: "/Users/{{ item[0] }}/Library/Preferences/com.apple.dock"
+      key: "{{ item[1] }}"
+      type: int
+      value: 1
+  loop: "{{ query('nested', ['{{ result_get_users.stdout_lines }}'], ['wvous-bl-corner', 'wvous-br-corner', 'wvous-tl-corner', 'wvous-tr-corner'], [0, 1, 2, 3]) }}"
+  when: 
+    - desktop_screen_saver_secure_screen_saver_corners is defined
+    - result_corner_configuration.results[item[2]].stdout == '6'
+  notify: restart Dock

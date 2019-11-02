@@ -1,0 +1,63 @@
+---
+- name: "Homebrew | Ensure parent directory has correct permissions"
+  become: yes
+  file:
+    path: "{{ homebrew_prefix }}"
+    owner: root
+    state: directory
+  when: ansible_distribution_version is version('10.13', '>=')
+
+- name: "Homebrew | Create install directory"
+  become: yes
+  file:
+    path: "{{ homebrew_install_path }}"
+    owner: "{{ homebrew_user }}"
+    group: "{{ homebrew_group }}"
+    state: directory
+    mode: '0775'
+
+- name: "Homebrew | Install Homebrew"
+  become: yes
+  become_user: "{{ homebrew_user }}"
+  git:
+    repo: "{{ homebrew_repo }}"
+    version: master
+    dest: "{{ homebrew_install_path }}"
+    update: no
+    depth: 1
+
+- name: "Homebrew | Set proper ownership on install path"
+  become: yes
+  file:
+    path: "{{ homebrew_install_path }}"
+    state: directory
+    owner: "{{ homebrew_user }}"
+    group: "{{ homebrew_group }}"
+    recurse: yes
+
+- name: "Homebrew | Set proper permissions and ownership on bin dir"
+  become: yes
+  file:
+    path: "{{ homebrew_brew_bin_path }}"
+    state: directory
+    owner: "{{ homebrew_user }}"
+    group: "{{ homebrew_group }}"
+    mode: '0775'
+
+- name: "Homebrew | Check if homebrew binary is already linked"
+  stat:
+    path: "{{ homebrew_brew_bin_path }}/brew"
+  register: homebrew_binary
+  check_mode: no
+
+- name: "Homebrew | Symlink brew to bin path"
+  become: yes
+  file:
+    src: "{{ homebrew_install_path }}/bin/brew"
+    dest: "{{ homebrew_brew_bin_path }}/brew"
+    state: link
+  when: not homebrew_binary.stat.exists
+
+- name: "Homebrew | Update Homebrew"
+  homebrew:
+    update_homebrew: yes

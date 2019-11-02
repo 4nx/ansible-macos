@@ -1,0 +1,4 @@
+---
+- name: Check if the target is MacOSX
+  debug: msg="Check OS"
+  failed_when: ansible_distribution != 'MacOSX' and ansible_os_family != 'Darwin'

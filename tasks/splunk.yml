@@ -1,0 +1,77 @@
+---
+- name: "Splunk | Check if Splunk Universal Forwarder is already installed"
+  stat:
+    path: "{{ splunk_home }}"
+  register: result_splunk_app
+
+- name: "Splunk | Download, mount and install Splunk Universal Forwarder"
+  block:
+    - name: "Splunk | Download Splunk Universal Forwarder file"
+      get_url:
+        url: "{{ splunk_url }}"
+        dest: "/tmp/{{ splunk_dmg_name }}"
+        checksum: "{{ splunk_checksum }}"
+
+    - name: "Splunk | Mount Splunk Universal Forwarder Image"
+      command: "hdiutil attach {{ splunk_dmg_name }} -nobrowse -mountpoint /tmp/{{ splunk_app_name }}"
+      args:
+        chdir: /tmp
+        creates: "{{ splunk_installer_pkg }}"
+    
+    - name: "Splunk | Install Splunk Universal Forwarder"
+      become: yes
+      shell: "installer -pkg {{ splunk_installer_pkg }} -target /"
+      args:
+        chdir: "/tmp/{{ splunk_app_name }}"
+        creates: "{{ splunk_home }}"
+
+# Alternative: Use --gen-and-print-passwd within start args to dynamically generate the 
+# password. Then I need to register and save it somewhere...
+    - name: "Splunk | Create administrator credentials"
+      become: yes
+      blockinfile:
+        path: "{{ splunk_home }}/etc/system/local/user-seed.conf"
+        create: yes
+        owner: "root"
+        group: "wheel"
+        mode: '0600'
+        block: |
+          [user_info]
+          USERNAME = {{ splunk_username }}
+          PASSWORD = {{ splunk_password }}
+    
+    - name: "Splunk | Detach Splunk Universal Forwarder Image"
+      command: "hdiutil detach {{ splunk_app_name }}"
+      args:
+        chdir: /tmp
+        removes: "{{ splunk_app_name}}/{{ splunk_installer_pkg }}"
+    
+    - name: "Splunk | Delete Splunk Universal Downloader install file"
+      file:
+        path: "/tmp/{{ splunk_dmg_name }}"
+        state: absent
+
+    - name: "Splunk | Start Splunk Universal Forwarder"
+      become: yes
+      command: "{{ splunk_home }}/bin/splunk start --accept-license --answer-yes --no-prompt"
+
+    - name: "Splunk | Enable Splunk Universal Forwarder boot-start"
+      become: yes
+      template:
+        src: splunk/com.splunk.plist.j2
+        dest: /Library/LaunchDaemons/com.splunk.plist
+        owner: root
+        group: wheel
+        mode: '0644'
+  when: result_splunk_app.stat.exists == false
+
+- name: "Splunk | Add directories for log monitoring"
+  become: yes
+  command: "{{ splunk_home }}/bin/splunk add monitor -auth '{{ splunk_username }}:{{ splunk_password }}' {{ item }}"
+  ignore_errors: yes
+  with_items:
+    - "{{ splunk_monitors }}"
+
+- name: "Splunk | Add communication to Splunk Indexer"
+  become: yes
+  command: "{{ splunk_home }}/bin/splunk add forward-server {{ splunk_indexer_host }}:{{ splunk_indexer_port }} -auth '{{ splunk_username }}:{{ splunk_password }}'"

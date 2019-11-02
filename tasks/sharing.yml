@@ -1,0 +1,162 @@
+---
+- name: "Sharing | Get remote apple events status"
+  become: yes
+  command: "systemsetup -getremoteappleevents"
+  register: result_remote_apple_events
+  changed_when: false
+  ignore_errors: true
+  when: sharing_remote_apple_events is defined
+
+- name: "Sharing | Set remote apple events status: {{ sharing_remote_apple_events }}"
+  become: yes
+  command: "systemsetup -setremoteappleevents {{ sharing_remote_apple_events }}"
+  when: 
+    - sharing_remote_apple_events is defined 
+    - sharing_remote_apple_events not in result_remote_apple_events.stdout
+
+- name: "Sharing | Get internet sharing status"
+  become: yes
+  command: "/usr/libexec/PlistBuddy -c 'Print :NAT:Enabled' /Library/Preferences/SystemConfiguration/com.apple.nat.plist"
+  register: result_internet_sharing
+  changed_when: false
+  ignore_errors: true
+  when: sharing_internet_sharing is defined
+
+- name: "Sharing | Set internet sharing status: {{ sharing_internet_sharing }}"
+  become: yes
+  vars: 
+    internet_sharing: "{{ 'true' if sharing_internet_sharing == 'On' else 'false' }}"
+  command: "plutil -replace NAT.Enabled -bool '{{ internet_sharing }}' /Library/Preferences/SystemConfiguration/com.apple.nat.plist"
+  when: 
+    - sharing_internet_sharing is defined
+    - result_internet_sharing.stdout != internet_sharing
+
+- name: "Sharing | Get screen sharing status"
+  become: yes
+  shell: "launchctl load /System/Library/LaunchDaemons/com.apple.screensharing.plist 2>&1 | cut -d':' -f2"
+  register: result_screen_sharing
+  changed_when: false
+  ignore_errors: true
+  when: sharing_screen_sharing is defined
+
+- name: "Sharing | Set screen sharing status: {{ sharing_screen_sharing }}"
+  become: yes
+  vars: 
+    screen_sharing: "{{ 'load' if sharing_screen_sharing == 'On' else 'unload' }}"
+    screen_sharing_status: "{{ 'load' if 'loaded' in result_screen_sharing.stdout else 'unload' }}"
+  command: "launchctl '{{ screen_sharing }}' -w /System/Library/LaunchDaemons/com.apple.screensharing.plist"
+  when:
+    - sharing_screen_sharing is defined
+    - screen_sharing_status != screen_sharing
+
+- name: "Sharing | Get printer sharing status"
+  shell: "cupsctl | grep '_share_printers' | cut -d'=' -f2"
+  register: result_printer_sharing
+  changed_when: false
+  ignore_errors: true
+  when: sharing_printer_sharing is defined
+
+- name: "Sharing | Set printer sharing status: {{ sharing_printer_sharing }}"
+  vars:
+    printer_sharing: "{{ '--share-printers' if sharing_printer_sharing == 'On' else '--no-share-printers' }}"
+    printer_sharing_status: "{{ 'On' if result_printer_sharing.stdout != '0' else 'Off' }}"
+  command: "cupsctl {{ printer_sharing }}"
+  when:
+    - sharing_printer_sharing is defined
+    - sharing_printer_sharing != printer_sharing_status
+
+- name: "Sharing | Get remote login status"
+  become: yes
+  command: "systemsetup -getremotelogin"
+  register: result_remote_login
+  changed_when: false
+  ignore_errors: true
+  when: sharing_remote_login is defined
+
+- name: "Sharing | Set remote login status: {{ sharing_remote_login }}"
+  become: yes
+  vars:
+    remote_login: "{{ 'on' if sharing_remote_login == 'On' else 'off' }}"
+  command: "systemsetup -f -setremotelogin {{ remote_login }}"
+  when:
+    - sharing_remote_login is defined
+    - sharing_remote_login not in result_remote_login.stdout
+
+- name: "Sharing | Get file sharing status (AFP)"
+  become: yes
+  shell: "launchctl load /System/Library/LaunchDaemons/com.apple.AppleFileServer.plist 2>&1 | cut -d':' -f2"
+  register: result_file_sharing_afp
+  changed_when: false
+  ignore_errors: true
+  when: sharing_file_sharing_afp is defined
+
+- name: "Sharing | Set file sharing status (AFP): {{ sharing_file_sharing_afp }}"
+  become: yes
+  vars:
+    file_sharing_afp: "{{ 'load' if sharing_file_sharing_afp == 'On' else 'unload' }}"
+    file_sharing_afp_status: "{{ 'load' if 'loaded' in result_file_sharing_afp.stdout else 'unload' }}"
+  command: "launchctl '{{ file_sharing_afp }}' -w /System/Library/LaunchDaemons/com.apple.AppleFileServer.plist"
+  when:
+    - sharing_file_sharing_afp is defined
+    - file_sharing_afp_status != file_sharing_afp
+
+- name: "Sharing | Get file sharing status (SMB)"
+  become: yes
+  shell: "launchctl load /System/Library/LaunchDaemons/com.apple.smbd.plist 2>&1 | cut -d':' -f2"
+  register: result_file_sharing_smb
+  changed_when: false
+  ignore_errors: true
+  when: sharing_file_sharing_smb is defined
+
+- name: "Sharing | Set file sharing status (SMB): {{ sharing_file_sharing_smb }}"
+  become: yes
+  vars:
+    file_sharing_smb: "{{ 'load' if sharing_file_sharing_smb == 'On' else 'unload' }}"
+    file_sharing_smb_status: "{{ 'load' if 'loaded' in result_file_sharing_smb.stdout else 'unload' }}"
+  command: "launchctl '{{ file_sharing_smb }}' -w /System/Library/LaunchDaemons/com.apple.smbd.plist"
+  when:
+    - sharing_file_sharing_smb is defined
+    - file_sharing_smb_status != file_sharing_smb
+
+- name: "Sharing | Disable remote management"
+  become: yes
+  command: "/System/Library/CoreServices/RemoteManagement/ARDAgent.app/Contents/Resources/kickstart -deactivate"
+  when: sharing_apple_remote_desktop == "Off"
+
+- name: "Sharing | Get bluetooth sharing status"
+  become: yes
+  command: "/usr/libexec/PlistBuddy -c 'Print :PrefKeyServicesEnabled' /Users/{{ main_user }}/Library/Preferences/ByHost/com.apple.Bluetooth.{{ hardware_uuid }}.plist"
+  register: result_bluetooth_sharing
+  changed_when: false
+  ignore_errors: true
+  when:
+    - hardware_uuid is defined
+    - sharing_bluetooth is defined
+
+- name: "Sharing | Set bluetooth sharing status: {{ sharing_bluetooth }}"
+  become: yes
+  vars: 
+    bluetooth_sharing: "{{ 'true' if sharing_bluetooth == 'On' else 'false' }}"
+    bluetooth_sharing_status: "{{ 'On' if 'true' in result_bluetooth_sharing.stdout else 'Off' }}"
+  command: "plutil -replace PrefKeyServicesEnabled -bool '{{ bluetooth_sharing }}' /Users/{{ main_user }}/Library/Preferences/ByHost/com.apple.Bluetooth.{{ hardware_uuid }}.plist"
+  when:
+    - hardware_uuid is defined
+    - sharing_bluetooth != bluetooth_sharing_status
+
+- name: "Sharing | Get content caching status"
+  become: yes
+  command: "AssetCacheManagerUtil -j status"
+  register: result_caching_status
+  changed_when: false
+  ignore_errors: true
+  when:
+    - sharing_content_caching is defined
+
+- name: "Sharing | Set content caching status: {{ sharing_content_caching }}"
+  become: yes
+  vars:
+    content_caching: "{{ 'activate' if sharing_content_caching == 'On' else 'deactivate' }}"
+    content_caching_status: "{{ 'On' if (result_caching_status.stdout | from_json).result.Activated == true else 'Off' }}"
+  command: "AssetCacheManagerUtil {{ content_caching }}"
+  when:
+    - sharing_content_caching != content_caching_status

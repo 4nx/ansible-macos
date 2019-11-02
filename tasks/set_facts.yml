@@ -1,0 +1,10 @@
+---
+- name: "set_facts | Get hardware UUID"
+  shell: "/usr/sbin/system_profiler SPHardwareDataType | grep \"Hardware UUID\" | awk -F \": \" '{print $2}'"
+  register: result_hardware_uuid
+  changed_when: false
+  check_mode: no
+
+- name: "set_facts | Set hardware UUID"
+  set_fact:
+    hardware_uuid: "{{ result_hardware_uuid.stdout }}"

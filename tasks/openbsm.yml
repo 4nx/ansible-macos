@@ -1,0 +1,11 @@
+---
+- name: "openbsm | Deploy openbsm configuration"
+  become: true
+  template:
+    src: openbsm/audit_control.j2
+    dest: "{{ openbsm_base_path }}/audit_control"
+    owner: root
+    group: wheel
+    mode: '0400'
+    backup: yes
+  notify: restart auditd

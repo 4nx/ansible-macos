@@ -1,0 +1,74 @@
+---
+- name: "osquery | Check if osquery is already installed"
+  stat:
+    path: "{{ osquery_base_path }}"
+  register: result_osquery_installed
+
+- name: "osquery | Download, mount and install osquery"
+  block:
+    - name: "osquery | Download osquery installer package"
+      get_url:
+        url: "{{ osquery_base_url }}/{{ osquery_pkg_name }}"
+        dest: "/tmp"
+        checksum: "{{ osquery_checksum }}"
+
+    - name: "osquery | Install osquery"
+      become: yes
+      shell: "installer -pkg {{ osquery_pkg_name }} -target /"
+      args:
+        chdir: /tmp
+        creates: "{{ osquery_base_path }}"
+  when:
+    - result_osquery_installed.stat.exists == false
+
+- name: "osquery | Deploy config file"
+  become: yes
+  template:
+    src: osquery/osquery.conf.j2
+    dest: "{{ osquery_base_path }}/osquery.conf"
+    owner: root
+    group: wheel
+    mode: '0400'
+  notify: restart osquery
+
+- name: "osquery | Deploy flag file"
+  become: yes
+  template:
+    src: osquery/osquery.flags.j2
+    dest: "{{ osquery_base_path }}/osquery.flags"
+    owner: root
+    group: wheel
+    mode: '0400'
+  notify: restart osquery
+
+- name: "osquery | Deploy syslog config file"
+  become: yes
+  template:
+    src: "osquery/{{ osquery_domain }}.conf.j2"
+    dest: "/etc/newsyslog.d/{{ osquery_domain }}.conf"
+    owner: root
+    group: wheel
+    mode: '0644'
+
+- name: "osquery | Deploy launch daemon file"
+  become: yes
+  template:
+    src: "osquery/{{ osquery_domain }}.plist.j2"
+    dest: "/Library/LaunchDaemons/{{ osquery_domain }}.plist"
+    owner: root
+    group: wheel
+    mode: '0644'
+  notify: restart osquery
+
+- name: "osquery | Check daemon status"
+  become: yes
+  command: "launchctl load /Library/LaunchDaemons/{{ osquery_domain }}.plist"
+  register: result_osquery_status
+  changed_when: false
+  check_mode: no
+
+- name: "osquery | Load launch daemon"
+  become: yes
+  command: "launchctl load -w /Library/LaunchDaemons/{{ osquery_domain }}.plist"
+  when: 
+    - "'already loaded' not in result_osquery_status.stderr"

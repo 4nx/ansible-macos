@@ -1,0 +1,20 @@
+---
+- name: Encryption | Check if FileVault is enabled
+  command: "fdesetup status"
+  register: result_file_vault_status
+
+- name: Encryption | Enable FileVault encryption
+  become: yes
+  expect:
+    command: "fdesetup enable -user {{ main_user }}"
+    responses: 
+     (.*)Enter the password for user(.*): "{{ file_vault_pass }}"
+  no_log: true
+  register: result_recovery_key
+  when:
+    - result_file_vault_status.stdout.find('FileVault is Off') != -1
+
+- debug:
+    var: "{{ result_recovery_key }}"
+  when:
+    - result_recovery_key is defined

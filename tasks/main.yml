@@ -1,0 +1,47 @@
+---
+- include: check_requirements.yml
+  tags: always
+
+- include: set_facts.yml
+  tags: always
+
+- include: homebrew.yml
+  tags: homebrew
+  when: homebrew_enabled == true
+
+- include: openbsm.yml
+  tags: openbsm
+  when: openbsm_enabled == true
+
+- include: osquery.yml
+  tags: osquery
+  when:
+    - osquery_enabled == true
+
+- include: encryption.yml
+  tags: encryption
+  when: encryption_enabled == true
+
+- include: app-store.yml
+  tags: app-store
+  when: app_store_enabled == true
+
+- include: bluetooth.yml
+  tags: bluetooth
+  when: bluetooth_enabled == true
+
+- include: date-time.yml
+  tags: date-time
+  when: date_time_enabled == true
+
+- include: desktop-screen-saver.yml
+  tags: desktop-screen-saver
+  when: desktop_screen_saver_enabled == true
+
+- include: sharing.yml
+  tags: sharing
+  when: sharing_enabled == true
+
+- include: splunk.yml
+  tags: splunk
+  when: splunk_enabled == true

@@ -1,0 +1,75 @@
+---
+- name: "Date & Time | Set date and time automatically"
+  become: yes
+  command: "systemsetup -setusingnetworktime {{ date_time_automatic_date_time }}"
+  register: result_automatic_date_time
+  changed_when: false
+  when: date_time_automatic_date_time is defined
+  notify: restart MenuBar
+
+- name: "Date & Time | Get the current timezone"
+  become: yes
+  command: "systemsetup -gettimezone"
+  register: result_time_zone
+  changed_when: false
+  when: date_time_time_zone is defined
+
+- name: "Date & Time | Set the timezone"
+  become: yes
+  command: "systemsetup -settimezone '{{ date_time_time_zone }}'"
+  when: 
+    - date_time_time_zone is defined
+    - date_time_time_zone not in result_time_zone.stdout
+  notify: restart MenuBar
+
+- name: "Date & Time | Get the current time server"
+  become: yes
+  command: "systemsetup -getnetworktimeserver"
+  register: result_network_time_server
+  changed_when: false
+  when: date_time_time_server is defined
+
+- name: "Date & Time | Set time server"
+  become: yes
+  command: "systemsetup -setnetworktimeserver '{{ date_time_time_server}}'"
+  when: 
+    - date_time_time_server is defined
+    - date_time_time_server not in result_network_time_server.stdout
+  notify: restart MenuBar
+
+- name: "Date & Time | Set time zone automatically using current location"
+  become: yes
+  osx_defaults:
+      domain: '/Library/Preferences/com.applet.timezone.auto.plist'
+      key: 'Active'
+      type: bool
+      value: "{{ date_time_automatic_time_zone }}"
+  when: date_time_automatic_time_zone is defined
+  notify: restart MenuBar
+
+- name: "Date & Time | Menu bar clock format"
+  osx_defaults:
+      domain: 'com.apple.menuextra.clock'
+      key: 'DateFormat'
+      type: string
+      value: "{{ date_time_date_format }}"
+  when: date_time_date_format is defined
+  notify: restart MenuBar
+
+- name: "Date & Time | Flash the time separators"
+  osx_defaults:
+      domain: 'com.apple.menuextra.clock'
+      key: 'FlashDateSeparators'
+      type: bool
+      value: "{{ date_time_flash_date_separators }}"
+  when: date_time_flash_date_separators is defined
+  notify: restart MenuBar
+
+- name: "Date & Time | Analog menu bar clock"
+  osx_defaults:
+      domain: 'com.apple.menuextra.clock'
+      key: 'IsAnalog'
+      type: bool
+      value: "{{ date_time_is_analog }}"
+  when: date_time_is_analog is defined
+  notify: restart MenuBar

@@ -1,0 +1,28 @@
+---
+- name: "Bluetooth | Check if Bluetooth is already in menu bar"
+  command: 'defaults read com.apple.systemuiserver menuExtras'
+  register: result_bluetooth_menu_bar
+  changed_when: False
+
+- name: "Bluetooth | Show Bluetooth in menu bar"
+  command: 'defaults write com.apple.systemuiserver menuExtras -array-add "/System/Library/CoreServices/Menu Extras/Bluetooth.menu"'
+  when:
+    - bluetooth_show_in_menu_bar is defined
+    - result_bluetooth_menu_bar.stdout != "Bluetooth.menu"
+  notify: restart MenuBar
+
+- name: "Bluetooth | Check if Bluetooth devices are paired"
+  shell: 'system_profiler SPBluetoothDataType | grep "Bluetooth:" -A 20 | grep Connectable | tr -d " "'
+  register: result_bluetooth_connectable
+  changed_when: False
+
+- name: "Bluetooth | Turn off Bluetooth, if no paired devices exist"
+  osx_defaults:
+      domain: '/Library/Preferences/com.apple.Bluetooth'
+      key: 'ControllerPowerState'
+      type: int
+      value: 0
+  when:
+    - bluetooth_turn_off_if_not_paired is defined
+    - result_bluetooth_connectable.stdout != "Connectable:Yes"
+  notify: restart Bluetooth

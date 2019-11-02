@@ -1,0 +1,118 @@
+---
+# https://blogs.dropbox.com/tech/2018/04/4696/
+# https://github.com/juju4/ansible-harden-darwin
+### General Settings ###
+hostname: "macbook"
+main_user: "foo"
+main_user_group: "admin"
+
+### Encryption Settings ###
+encryption_enabled: true
+
+app_store_enabled: true                                 # Enable AppStore configuration
+app_store_automatic_check_enabled: 1                    # Enable automatically check for updates
+app_store_automatic_download: true                      # Enable automatically update downloads
+app_store_auto_update: true                             # Enable automatically app updates
+app_store_auto_update_restart_required: true            # Enable automatically OSX updates
+app_store_config_data_install: true                     # Enable automatically system data files
+app_store_critical_update_install: true                 # Enable automatically security updates
+app_store_schedule_frequency: 1                         # Check for software updates (in days)
+app_store_show_debug_menu: false                        # Show debug menu
+
+bluetooth_enabled: true                                 # Enable Bluetooth configuration
+bluetooth_show_in_menu_bar: true                        # Show Bluetooth in menu bar
+bluetooth_turn_off_if_not_paired: true                  # Turn off Bluetooth, if no paired devices exist
+
+date_time_enabled: true                                 # Enable Date Time configuration
+date_time_automatic_date_time: "on"                     # Set date and time automatically
+date_time_time_zone: "Europe/Berlin"                    # Set the timezone
+date_time_time_server: "time.apple.com"                 # Set time server
+date_time_automatic_time_zone: false                    # Set time zone automatically using current location
+date_time_date_format: "EEE d. MMM  HH:mm"              # Menu bar clock format
+date_time_flash_date_separators: false                  # Flash the time separators
+date_time_is_analog: false                              # Analog menu bar clock
+
+desktop_screen_saver_enabled: true                      # Enable Desktop and Screen Saver configuration
+desktop_screen_saver_background_image: ""               # Background image
+desktop_screen_saver_idle_time: 1200                    # Set an inactivity interval for the screen saver (in seconds; 0 = never)
+desktop_screen_saver_secure_screen_saver_corners: true  # Secure screen saver corners
+desktop_screen_saver_ask_for_password_delay: 5          # Delay before Password is required when Mac goes to sleep
+
+homebrew_enabled: false                                 # Install Homebrew on the system and use it
+homebrew_repo: "https://github.com/Homebrew/brew"       # Defining the Homebrew repository
+homebrew_prefix: "/usr/local"                           # Prefix path for installation file of Homebrew
+homebrew_brew_bin_path: "{{ homebrew_prefix }}/bin"     # Bin path for Homebrew
+homebrew_install_path: "{{ homebrew_prefix }}/Homebrew" # Install path for Homebrew
+homebrew_user: "{{ main_user }}"                        # Set Homebrew user
+homebrew_group: "{{ main_user_group }}"                 # Set Homebrew group
+
+openbsm_enabled: true
+openbsm_base_path: "/etc/security"
+
+osquery_enabled: true                                   # Install osquery
+osquery_base_url: "https://pkg.osquery.io/darwin"
+osquery_pkg_name: "osquery-4.0.2.pkg"
+osquery_checksum: "sha256:91932b1eb4a7d1ed684611f25686a5a72b7342b54ca20a990ac647ce6c42a381"
+osquery_domain: "com.facebook.osqueryd"                 # osquery domain
+osquery_config_path: "/var/osquery"                     # Standard path for the configuration of osquery
+osquery_config_name: "osquery.conf"
+osquery_pid_name: "osquery.pid"
+osquery_flagfile_name: "osquery.flags"
+osquery_log_path: "/var/log/osquery"
+osquery_options:
+  host_identifier:
+    value: "{{ hostname }}"
+  config_plugin:
+    value: "filesystem"
+  logger_plugin:
+    value: "filesystem"
+  logger_path:
+    value: "{{ osquery_log_path }}"
+  disable_logging:
+    value: "false"
+  schedule_splay_percent:
+    value: 10
+osquery_schedules:
+  system_info:
+    query: "SELECT hostname, cpu_brand, physical_memory FROM system_info;"
+    interval: 3600
+  macosx_kexstat:
+    query: "SELECT * FROM kernel_extensions;"
+    interval: 300 
+  os_version:
+    query: "SELECT name, version, patch, build from os_version;"
+    interval: 86400
+osquery_packs:
+  incident-response:
+    value: "{{ osquery_base_path }}/packs/incident-response.conf"
+  osquery-monitoring:
+    value: "{{ osquery_base_path }}/packs/osquery-monitoring.conf"
+  osx-attacks:
+    value: "{{ osquery_base_path }}/packs/osx-attacks.conf"
+  vuln-management:
+    value: "{{ osquery_base_path }}/packs/vuln-management.conf"
+
+sharing_enabled: true                                   # Enable Sharing configurarion
+sharing_remote_apple_events: "Off"                      # Remote Apple Events (default: Off)
+sharing_internet_sharing: "Off"                         # Internet Sharing (default: Off)
+sharing_screen_sharing: "Off"                           # Screen Sharing (default: Off)
+sharing_printer_sharing: "Off"                          # Printer Sharing (default: Off)
+sharing_remote_login: "On"                              # Remote Login (default: Off)
+sharing_file_sharing_afp: "Off"                         # File Sharing via AFP (default: Off)
+sharing_file_sharing_smb: "Off"                         # File Sharing via SMB (default: Off)
+sharing_apple_remote_desktop: "Off"                     # Apple Remote Desktop (default: Off) !Todo: On
+sharing_bluetooth: "Off"                                # File Sharing via Bluetooth (default: Off); Changes needs reboot
+sharing_content_caching: "Off"                          # Set content caching service (default: Off)
+
+splunk_enabled: true
+splunk_url: "https://download.splunk.com/products/universalforwarder/releases/8.0.0/osx/splunkforwarder-8.0.0-1357bef0a7f6-macosx-10.11-intel.dmg"
+splunk_checksum: "md5:9e32bd0b0078ae017e13880577a6766c"
+splunk_app_name: "SplunkForwarder"
+splunk_home: "/Applications/{{ splunk_app_name }}"
+splunk_monitors:
+  - /var/log
+splunk_username: "admin"
+splunk_dmg_name: "splunkforwarder-macosx-intel.dmg"
+splunk_installer_pkg: ".payload/*.pkg"
+splunk_indexer_host: "192.168.2.60"
+splunk_indexer_port: 9997
